@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Presence</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 50px;
+        }
+
+        .verification-container {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #video {
+            width: 100%;
+            border-radius: 5px;
+            background: #000;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .success-box {
+            display: none;
+            color: #198754;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="verification-container text-center" id="mainCard">
+            <div id="verify-content">
+                <h3>Verify Active Presence</h3>
+                <p class="text-muted">Please confirm you are still working.</p>
+
+                <div id="errorBox" class="alert alert-danger" style="display: none;"></div>
+
+                <ul class="nav nav-pills nav-fill mb-4" id="pills-tab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="pills-face-tab" data-bs-toggle="pill"
+                            data-bs-target="#pills-face" type="button" role="tab">Face Match</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pills-pass-tab" data-bs-toggle="pill" data-bs-target="#pills-pass"
+                            type="button" role="tab">Password</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="pills-tabContent">
+                    <!-- Face Verification -->
+                    <div class="tab-pane fade show active" id="pills-face" role="tabpanel" tabindex="0">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                        <button type="button" class="btn btn-primary w-100 mt-3" id="snapBtn">Scan Face</button>
+                    </div>
+
+                    <!-- Password Verification -->
+                    <div class="tab-pane fade" id="pills-pass" role="tabpanel" tabindex="0">
+                        <div class="mb-3">
+                            <input type="password" id="passwordInput" class="form-control"
+                                placeholder="Enter your password" required>
+                        </div>
+                        <button type="button" id="verifyPassBtn" class="btn btn-success w-100">Verify Password</button>
+                    </div>
+                </div>
+
+                <a href="/employee" class="btn btn-outline-secondary w-100 mt-3">Go to Dashboard</a>
+            </div>
+
+            <div class="success-box" id="successBox">
+                <svg viewBox="0 0 24 24" style="width: 50px; height: 50px; fill: #198754; margin-bottom: 10px;">
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg><br>
+                <h4>Verification Successful!</h4>
+                <p class="text-muted">You can close this tab and continue working.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const snapBtn = document.getElementById('snapBtn');
+        const verifyPassBtn = document.getElementById('verifyPassBtn');
+        const errorBox = document.getElementById('errorBox');
+        let stream = null;
+
+        async function startCamera() {
+            try {
+                if (!stream) {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = stream;
+                }
+            } catch (err) {
+                console.error("Camera error:", err);
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+            }
+        }
+
+        document.getElementById('pills-face-tab').addEventListener('shown.bs.tab', startCamera);
+        document.getElementById('pills-pass-tab').addEventListener('shown.bs.tab', stopCamera);
+
+        startCamera();
+
+        async function submitVerification(formData, btn, defaultText) {
+            errorBox.style.display = 'none';
+            btn.disabled = true;
+            btn.innerText = 'Verifying...';
+
+            try {
+                const res = await fetch('/api/verify_presence', { method: 'POST', body: formData });
+                if (res.ok) {
+                    document.getElementById('verify-content').style.display = 'none';
+                    document.getElementById('successBox').style.display = 'block';
+                    stopCamera();
+
+                    // Auto close tab after a few seconds
+                    setTimeout(() => {
+                        window.close();
+                    }, 3000);
+                } else {
+                    const data = await res.json();
+                    errorBox.innerText = 'Verification failed: ' + (data.error || 'Unknown');
+                    errorBox.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerText = defaultText;
+                }
+            } catch (e) {
+                errorBox.innerText = 'Error verifying. Please check your connection.';
+                errorBox.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = defaultText;
+            }
+        }
+
+        snapBtn.addEventListener('click', () => {
+            if (!video.videoWidth) return alert('Camera not ready.');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const fd = new FormData();
+            fd.append('image', canvas.toDataURL('image/jpeg'));
+            submitVerification(fd, snapBtn, 'Scan Face');
+        });
+
+        verifyPassBtn.addEventListener('click', () => {
+            const pw = document.getElementById('passwordInput').value;
+            if (!pw) {
+                errorBox.innerText = 'Please enter a password.';
+                errorBox.style.display = 'block';
+                return;
+            }
+            const fd = new FormData();
+            fd.append('password', pw);
+            submitVerification(fd, verifyPassBtn, 'Verify Password');
+        });
+
+        // Handle visibility
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopCamera();
+            } else if (document.getElementById('pills-face-tab').classList.contains('active') && document.getElementById('verify-content').style.display !== 'none') {
+                startCamera();
+            }
+        });
+    </script>
+</body>
+
+</html>

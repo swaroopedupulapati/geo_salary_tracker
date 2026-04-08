@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Face Login</title>
+  <style>
+    #video {
+      border: 1px solid black;
+      width: 450px;
+      height: 337px;
+    }
+
+    #canvas {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Login Using Face</h2>
+
+  <!-- Video Element for Preview -->
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" width="450" height="337"></canvas>
+
+  <form method="POST" id="loginForm">
+    <br />
+    <input type="text" name="username" id="username" placeholder="Enter Username" required
+      value="{{ prefill_username or '' }}" />
+    <!-- Hidden input to store base64 image -->
+    <input type="hidden" name="image" id="imageInput">
+    <br /><br />
+    <button type="button" id="snapAndLogin">Login</button>
+  </form>
+
+  <br />
+  <a href="/face">Back</a>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const imageInput = document.getElementById('imageInput');
+    const loginForm = document.getElementById('loginForm');
+    const snapButton = document.getElementById('snapAndLogin');
+
+    // Access Camera
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        console.error("Error accessing camera: ", err);
+        alert("Could not access camera. Please allow camera permissions.");
+      }
+    }
+
+    startCamera();
+
+    // Capture Photo
+    snapButton.addEventListener('click', () => {
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, 450, 337);
+      const dataURL = canvas.toDataURL('image/jpeg');
+      imageInput.value = dataURL;
+
+      // Submit Form
+      loginForm.submit();
+    });
+  </script>
+</body>
+
+</html>

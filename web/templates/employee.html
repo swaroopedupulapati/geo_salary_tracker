@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Employee Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        /* ... keeping existing styles by only appending modal styles ... */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Modal Styles */
+        .custom-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-modal {
+            background: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .custom-modal h3 {
+            margin-top: 0;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .custom-modal p {
+            margin: 0 0 15px 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .modal-tabs {
+            display: flex;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 15px;
+        }
+
+        .modal-tab {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #888;
+            border-bottom: 3px solid transparent;
+        }
+
+        .modal-tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .modal-pane {
+            display: none;
+        }
+
+        .modal-pane.active {
+            display: block;
+        }
+
+        .modal-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .modal-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .modal-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        #verifyVideo {
+            width: 100%;
+            border-radius: 5px;
+            background: #000;
+            margin-bottom: 10px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ddd;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+            color: white;
+        }
+
+        #btn-start {
+            background-color: #27ae60;
+        }
+
+        #btn-start:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #btn-stop {
+            background-color: #c0392b;
+        }
+
+        #btn-stop:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .logout {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .logout a {
+            color: #e74c3c;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        #status {
+            font-weight: bold;
+        }
+
+        .status-inside {
+            color: green;
+        }
+
+        .status-outside {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Welcome, {{ emp }}</h2>
+
+        <div class="card">
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-val" id="status">IDLE</div>
+                    <div class="stat-label">Current Status</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val"><span id="minutes">0</span> min</div>
+                    <div class="stat-label">Worked Today</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-val">₹<span id="earned">0</span></div>
+                    <div class="stat-label">Earned Today</div>
+                </div>
+            </div>
+
+            <div id="map"></div>
+
+            <div class="controls">
+                <button id="btn-start" onclick="startWork()">Start Work</button>
+                <button id="btn-stop" onclick="stopWork()" disabled>Stop Work</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="text-align: center; color: #333;">Recent Attendance</h3>
+            <table style="width: 100%; text-align: left; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ddd; padding-bottom: 5px;">
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>In Time</th>
+                        <th>Out Time</th>
+                        <th>Worked Hr</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceLogBody">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #888; padding: 10px;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="logout">
+            <a href="/logout">Logout</a>
+        </div>
+
+        <!-- Verify Presence Modal (Custom CSS) -->
+        <div class="custom-modal-overlay" id="verifyModalOverlay">
+            <div class="custom-modal">
+                <h3>Active Presence</h3>
+                <p>Are you still working? Please verify.</p>
+
+                <div class="modal-tabs">
+                    <div class="modal-tab active" id="tabFace" onclick="switchModalTab('face')">Face Match</div>
+                    <div class="modal-tab" id="tabPass" onclick="switchModalTab('pass')">Password</div>
+                </div>
+
+                <div class="modal-pane active" id="paneFace">
+                    <video id="verifyVideo" autoplay playsinline></video>
+                    <canvas id="verifyCanvas" style="display:none;"></canvas>
+                    <button class="modal-btn" onclick="verifyFace()" id="verifyFaceBtn">Scan Face</button>
+                </div>
+
+                <div class="modal-pane" id="panePass">
+                    <input type="password" id="verifyPassword" class="modal-input" placeholder="Enter password">
+                    <button class="modal-btn" onclick="verifyPassword()" id="verifyPassBtn"
+                        style="background-color: #2ecc71;">Verify Password</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Data & State ---
+        const initialGeofences = JSON.parse('{{ geofences | tojson | safe }}' || '[]');
+        const alertIntervalMs = Number("{{ alert_interval | default(5) }}") * 60 * 1000;
+        let watchId = null;
+        let heartbeatTimer = null;
+        let verifyTimer = null; // Local timer for verification
+        let currentMarker = null;
+        let lastPosition = null;
+
+        // --- DOM Elements ---
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const statusEl = document.getElementById('status');
+        const minutesEl = document.getElementById('minutes');
+        const earnedEl = document.getElementById('earned');
+
+        // --- Map Initialization ---
+        // Default center if no geofence
+        const defaultCenter = [15.4796, 80.0215];
+        const center = (initialGeofences && initialGeofences.length > 0 && initialGeofences[0].length > 0) ? initialGeofences[0][0] : defaultCenter;
+
+        const map = L.map('map').setView(center, 16);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Draw Geofences
+        if (initialGeofences && initialGeofences.length > 0) {
+            let featureGroup = L.featureGroup();
+            initialGeofences.forEach(fence => {
+                let layer = L.polygon(fence, { color: 'blue', fillOpacity: 0.1 }).addTo(map);
+                featureGroup.addLayer(layer);
+            });
+            map.fitBounds(featureGroup.getBounds());
+        }
+
+        // --- Logic ---
+
+        function updateStatusUI(status) {
+            statusEl.innerText = status;
+            statusEl.className = ""; // reset
+            if (status.includes("INSIDE")) statusEl.classList.add("status-inside");
+            else statusEl.classList.add("status-outside");
+        }
+
+        function updateMapMarker(lat, lng) {
+            if (currentMarker) {
+                currentMarker.setLatLng([lat, lng]);
+            } else {
+                currentMarker = L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+            }
+            // Center map on user purely optional, maybe don't force it every time so they can pan
+            // map.setView([lat, lng]); 
+        }
+
+        function sendHeartbeat() {
+            if (!lastPosition) return;
+
+            fetch("/api/heartbeat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(lastPosition)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    updateStatusUI(data.status);
+                    if (data.status === "NEEDS_VERIFICATION") {
+                        showVerifyModal(); // Force verification modal to appear if they are active on this page
+                    }
+                })
+                .catch(err => console.error("Heartbeat failed", err));
+        }
+
+        function fetchStats() {
+            fetch("/api/employee/stats")
+                .then(r => r.json())
+                .then(data => {
+                    minutesEl.innerText = data.worked_minutes;
+                    earnedEl.innerText = data.earned;
+                })
+                .catch(err => console.error("Stats fetch failed", err));
+        }
+
+        function fetchAttendanceLogs() {
+            fetch("/api/attendance")
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById("attendanceLogBody");
+                    tbody.innerHTML = "";
+                    if (!data.attendance || data.attendance.length === 0) {
+                        tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No records found.</td></tr>";
+                        return;
+                    }
+                    data.attendance.forEach(log => {
+                        const inT = log.in_time ? new Date(log.in_time).toLocaleTimeString() : "-";
+                        const outT = log.out_time ? new Date(log.out_time).toLocaleTimeString() : "-";
+                        const hrs = (log.worked_seconds / 3600).toFixed(2);
+                        let statusColor = "#333";
+                        if (log.status && log.status.includes("LATE")) statusColor = "red";
+                        if (log.status && log.status.includes("EARLY")) statusColor = "orange";
+                        if (log.status && log.status.includes("PRESENT")) statusColor = "green";
+
+                        tbody.innerHTML += `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 8px 0;">${log.date}</td>
+                                <td style="padding: 8px 0; color: ${statusColor}; font-weight: bold;">${log.status || "UNKNOWN"}</td>
+                                <td style="padding: 8px 0;">${inT}</td>
+                                <td style="padding: 8px 0;">${outT}</td>
+                                <td style="padding: 8px 0;">${hrs}</td>
+                            </tr>
+                        `;
+                    });
+                })
+                .catch(err => console.error("Logs fetch failed", err));
+        }
+
+        function downloadPayslip() {
+            const monthVal = document.getElementById("payslipMonth").value;
+            if (!monthVal) {
+                alert("Please select a month.");
+                return;
+            }
+            window.open(`/api/employee/payslip?month=${monthVal}`, '_blank');
+        }
+
+        // --- Local Verification Timer ---
+        function startVerifyTimer() {
+            if (verifyTimer) clearTimeout(verifyTimer);
+            verifyTimer = setTimeout(() => {
+                triggerLocalVerification();
+            }, alertIntervalMs);
+        }
+
+        function triggerLocalVerification() {
+            // Tell backend we need verification (pauses tracking)
+            fetch("/api/trigger_verification", { method: "POST" })
+                .then(r => r.json())
+                .then(data => {
+                    updateStatusUI("NEEDS_VERIFICATION");
+                    showVerifyModal(); // Pop the modal
+
+                    // Add real-time visual alert (flash screen briefly)
+                    const originalBg = document.body.style.backgroundColor;
+                    document.body.style.transition = "background-color 0.2s";
+                    document.body.style.backgroundColor = "#ffcccc";
+                    setTimeout(() => {
+                        document.body.style.backgroundColor = originalBg;
+                    }, 400);
+
+                    // Optional audio alert if browser allows (simple beep)
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioCtx.createOscillator();
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+                        oscillator.connect(audioCtx.destination);
+                        oscillator.start();
+                        oscillator.stop(audioCtx.currentTime + 0.2); // Beep for 200ms
+                    } catch (e) {
+                        console.warn('Audio alert blocked or unsupported', e);
+                    }
+
+                    // Attempt browser notification via Service Worker
+                    if (Notification.permission === 'granted' && navigator.serviceWorker) {
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.showNotification("Swaro Attendance", {
+                                body: "Are you still active? Please verify your presence.",
+                                icon: "/static/icon.png", // Optional, adjust if you have an icon
+                                requireInteraction: true,
+                                vibrate: [200, 100, 200],
+                                data: { url: "/employee?action=verify" } // In case they click the notification
+                            });
+                        });
+                    } else if (Notification.permission === 'granted') {
+                        new Notification("Swaro Attendance", {
+                            body: "Are you still active?",
+                            requireInteraction: true
+                        });
+                    }
+                })
+                .catch(err => console.error("Verify trigger failed", err));
+        }
+
+        function stopVerifyTimer() {
+            if (verifyTimer) {
+                clearTimeout(verifyTimer);
+                verifyTimer = null;
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if ('Notification' in window) {
+                if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                    await Notification.requestPermission();
+                }
+            }
+        }
+
+        function startWork() {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser");
+                return;
+            }
+
+            // UI Updates
+            btnStart.disabled = true;
+            btnStart.innerText = "Tracking...";
+            btnStop.disabled = false;
+            statusEl.innerText = "Locating...";
+
+            // 1. Get initial position
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    handlePositionUpdate(position);
+                    sendHeartbeat(); // Immediate first send
+                },
+                (error) => {
+                    alert("Error getting location: " + error.message);
+                    resetUI();
+                },
+                { enableHighAccuracy: true }
+            );
+
+            // 2. Start Watch
+            watchId = navigator.geolocation.watchPosition(
+                handlePositionUpdate,
+                (error) => console.warn("Watch error:", error),
+                { enableHighAccuracy: true, maximumAge: 10000 }
+            );
+
+            // 3. Start Heartbeat Interval
+            heartbeatTimer = setInterval(sendHeartbeat, 60000); // Every minute
+
+            // 4. Request Browser Notification Permissions
+            requestNotificationPermission();
+
+            // 5. Start Local Verification Timer
+            startVerifyTimer();
+        }
+
+        function stopWork() {
+            // Clear Watch & Timers
+            if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            if (heartbeatTimer !== null) clearInterval(heartbeatTimer);
+
+            watchId = null;
+            heartbeatTimer = null;
+            stopVerifyTimer();
+
+            // Tell Server
+            fetch("/api/stop_tracking", { method: "POST" })
+                .then(() => updateStatusUI("STOPPED"))
+                .catch(err => console.error("Stop failed", err));
+
+            resetUI();
+        }
+
+        function resetUI() {
+            btnStart.disabled = false;
+            btnStart.innerText = "Start Work";
+            btnStop.disabled = true;
+            // statusEl.innerText = "IDLE"; // Optional: keep last status or reset
+        }
+
+        function handlePositionUpdate(position) {
+            lastPosition = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            updateMapMarker(lastPosition.lat, lastPosition.lng);
+        }
+
+        // --- Init ---
+        // Fetch stats immediately on load
+        fetchStats();
+        fetchAttendanceLogs();
+        // And periodically
+        setInterval(fetchStats, 60000);
+
+        // --- Verification Logic ---
+        let verifyStream = null;
+        const modalOverlay = document.getElementById('verifyModalOverlay');
+
+        function switchModalTab(tab) {
+            document.getElementById('tabFace').classList.remove('active');
+            document.getElementById('tabPass').classList.remove('active');
+            document.getElementById('paneFace').classList.remove('active');
+            document.getElementById('panePass').classList.remove('active');
+            if (tab === 'face') {
+                document.getElementById('tabFace').classList.add('active');
+                document.getElementById('paneFace').classList.add('active');
+                startVerifyCamera();
+            } else {
+                document.getElementById('tabPass').classList.add('active');
+                document.getElementById('panePass').classList.add('active');
+                stopVerifyCamera();
+            }
+        }
+
+        function showVerifyModal() {
+            modalOverlay.style.display = 'flex';
+            switchModalTab('face');
+        }
+
+        // Handle URL params (fallback when postMessage doesn't work)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'verify') {
+            // Auto-resume tracking since we came from a notification click
+            window.history.replaceState({}, '', '/employee');
+            // Wait a moment for page to load, then start work and show modal
+            setTimeout(() => {
+                startWork();
+                showVerifyModal();
+            }, 1000);
+        } else if (urlParams.get('action') === 'stop') {
+            window.history.replaceState({}, '', '/employee');
+            fetch('/api/stop_tracking', { method: 'POST' });
+        }
+
+        async function startVerifyCamera() {
+            try {
+                if (!verifyStream) {
+                    verifyStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    document.getElementById('verifyVideo').srcObject = verifyStream;
+                }
+            } catch (err) {
+                console.error('Camera error:', err);
+            }
+        }
+
+        function stopVerifyCamera() {
+            if (verifyStream) {
+                verifyStream.getTracks().forEach(t => t.stop());
+                verifyStream = null;
+                document.getElementById('verifyVideo').srcObject = null;
+            }
+        }
+
+        function closeVerifyModal() {
+            modalOverlay.style.display = 'none';
+            stopVerifyCamera();
+        }
+
+        async function verifyPassword() {
+            const pw = document.getElementById('verifyPassword').value;
+            if (!pw) return alert('Enter password');
+            const btn = document.getElementById('verifyPassBtn');
+            btn.disabled = true;
+            btn.innerText = 'Verifying...';
+            const fd = new FormData();
+            fd.append('password', pw);
+            await submitVerification(fd, btn, 'Verify Password');
+        }
+
+        async function verifyFace() {
+            const video = document.getElementById('verifyVideo');
+            if (!video.videoWidth) return alert('Camera not ready.');
+            const canvas = document.getElementById('verifyCanvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            const btn = document.getElementById('verifyFaceBtn');
+            btn.disabled = true;
+            btn.innerText = 'Scanning...';
+            const fd = new FormData();
+            fd.append('image', canvas.toDataURL('image/jpeg'));
+            await submitVerification(fd, btn, 'Scan Face');
+        }
+
+        async function submitVerification(formData, btn, defaultText) {
+            try {
+                const res = await fetch('/api/verify_presence', { method: 'POST', body: formData });
+                if (res.ok) {
+                    closeVerifyModal();
+                    // Work continues, clear flag and restart timer locally
+                    updateStatusUI("INSIDE"); // Optimistic update, actual update comes in next heartbeat
+                    startVerifyTimer();
+                } else {
+                    const data = await res.json();
+                    alert('Verification failed: ' + (data.error || 'Unknown'));
+                }
+            } catch (e) {
+                alert('Error verifying.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = defaultText;
+                document.getElementById('verifyPassword').value = '';
+            }
+        }
+
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+flask
+pymongo
+opencv-python
+numpy
+deepface
+requests
+python-dotenv
+reportlab
